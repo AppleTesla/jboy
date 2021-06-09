@@ -3,7 +3,7 @@
     "path": "~/OneDrive/Documents/Spring 2021/STAT 331/jboy/R/imports.R",
     "project_path": "R/imports.R",
     "type": "r_source",
-    "hash": "1909828140",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1623254422965.0,
@@ -16,11 +16,11 @@
         "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1623257820,
+    "lastKnownWriteTime": 1623257888,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1623257820349,
+    "last_content_update": 1623257888789,
     "read_only": false,
     "read_only_alternatives": []
 }
