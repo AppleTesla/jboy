@@ -10,15 +10,16 @@ imports <- function(options = c('default')) {
   libraries <- c('tidyerse')
 
   if (is.element('csv', options)) {
-    append(libraries, 'here', 'data.table', 'lubridate')
+    append(libraries, c('here', 'data.table', 'lubridate'))
   }
 
   if (is.element('stat.tests', options)) {
-    append(libraries, 'infer', 'modelr', 'plotrix')
+    append(libraries, c('infer', 'modelr', 'plotrix'))
   }
 
   if (is.element('unit.tests', options)) {
-    append(libraries, 'testthat')
-    print('Installed!')
+    append(libraries, c('testthat'))
   }
+
+  print('Installed all packages!')
 }
