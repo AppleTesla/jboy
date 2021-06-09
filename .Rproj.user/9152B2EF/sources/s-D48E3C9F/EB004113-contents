@@ -21,5 +21,6 @@ imports <- function(options = c('default')) {
     append(libraries, c('testthat'))
   }
 
+  lapply(libraries, library, character.only = TRUE)
   print('Installed all packages!')
 }
