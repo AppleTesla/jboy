@@ -10,7 +10,7 @@ imports <- function(options = c('default')) {
   libraries <- c('tidyerse')
 
   if (is.element('csv', options)) {
-    append(libraries, c('here', 'data.table', 'lubridate'))
+    append(libraries, c('here', 'data.table'))
   }
 
   if (is.element('stat.tests', options)) {
