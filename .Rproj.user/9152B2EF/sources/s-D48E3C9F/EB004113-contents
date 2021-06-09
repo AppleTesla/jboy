@@ -19,5 +19,6 @@ imports <- function(options = c('default')) {
 
   if (is.element('unit.tests', options)) {
     append(libraries, 'testthat')
+    print('Installed!')
   }
 }
