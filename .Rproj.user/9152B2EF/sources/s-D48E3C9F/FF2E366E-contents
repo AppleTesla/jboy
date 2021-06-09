@@ -1,0 +1,256 @@
+---
+title: "Lab8"
+author: "Jaron Schreibr"
+date: "5/30/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r import, include=FALSE}
+library(tidyverse)
+library(gridExtra)
+library(here)
+library(infer)
+
+data <- read.csv(here::here("Data", "SF_Salaries_sub.csv"), 
+                      header = TRUE, 
+                      na.strings = c("Not Provided", "Not provided")) %>%
+  filter(Year == 2014)
+```
+
+# {.tabset .tabset-fade .tabset-pills}
+
+## The Data
+
+### Total Pay
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
+norm_plot <- ggplot(data, aes(x=TotalPay)) + 
+  geom_histogram(bins = 40, aes(y = ..density..), fill = "grey", col = "white") + 
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(data$TotalPay), 
+                            sd = sd(data$TotalPay)))
+```
+</details>
+</br>
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+norm_plot
+```
+
+<div class="alert alert-info">
+  <strong>Analysis!</strong> The shape is bi-modal and heavily skewed to the right, with a **median center of `r formatC(median(data$TotalPay), format = "e", digits = 2)`** and a **moderate spread with an IQR of `r formatC(IQR(data$TotalPay), format = "e", digits = 2)`**.
+</div>
+
+### Is the mean a good statistic to use here to describe the typical value of salary?
+
+The mean is not a good statistic because means are heavily skewed by extremes. In the case of salaries, the few millionaires/billionaires will heavily skew the mean so that it appears the average is higher than it actually is.
+
+### Does the normal-dist assumption seem reasonable for the mean Total Pay?
+
+No because judging from the density plot above, the distribution for the Total Pay is more of an exponential curve, where the median lays dramatically to the left of the mean. This makes sense, as most people make a minimum-to-average wage and far fewer people bring in six or seven-figure income.
+
+### Total Pay t-distribution
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
+t_dist <- data %>%
+  t_test(response = TotalPay, conf_level = 0.95)
+```
+</details>
+</br>
+
+A 95% confidence interval for the Total Pay mean would range from a low of `r formatC(t_dist$lower_ci, format = "e", digits = 2)` to a high of `r formatC(t_dist$upper_ci, format = "e", digits = 2)`.
+
+## Bootstrapping
+
+### Bootstrap vs T-test 95% CI
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
+bootstrap_sample <- data %>%
+  infer::specify(response = TotalPay) %>%
+  infer::generate(reps = 1000, type = "bootstrap")
+
+mean_CI <- bootstrap_sample %>%
+  infer::calculate(stat = "mean") %>%
+  pull(stat) %>%
+  quantile(c(0.025, 0.975))
+```
+</details>
+</br>
+
+Via the bootstrap method, my 95% confidence interval had a low of `r formatC(mean_CI[1], format = "e", digits = 2)` to a high of `r formatC(mean_CI[2], format = "e", digits = 2)`. Compared to my t-interval of [`r formatC(t_dist$lower_ci, format = "e", digits = 2)`, `r formatC(t_dist$upper_ci, format = "e", digits = 2)`], they are nearly the same In fact, the lower boundaries remained identical while the upper boundary from my bootstrap method deviated from the t-interval between code runs.
+</details>
+</br>
+
+### More Appropriate Statistics
+
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
+midhinge <- function(sample) {
+  quantile_sum <- quantile(sample, 0.25) + quantile(sample, 0.75)
+  quantile_mean <- quantile_sum/2
+  return(quantile_mean)
+}
+
+trimmed_mean <- function(sample, percent = 0.2) {
+  sorted <- sort(sample)
+  num_remove <- floor(percent * length(sample))
+  truncated <- sorted[num_remove:length(sample)-num_remove]
+  trim_mean <- mean(truncated)
+  return(trim_mean)
+}
+```
+
+<div class="alert alert-info">
+  <strong>Important!</strong> For my trimmed_mean function, I chose the method of removing the input percentage of samples from both the head and tail of the input data. A percent arg of 0.2 removes 20% of ordered samples from both the head and tail, leaving 60% of samples remaining.
+</div>
+
+### Bootstrap 95% CI's for Total Pay
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
+midhinge_density <- bootstrap_sample %>%
+  group_by(replicate) %>%
+  mutate(TotalPay = midhinge(TotalPay)) %>%
+  unique %>%
+  pull(TotalPay) 
+
+midhinge_CI <- midhinge_density %>% quantile(c(0.025, 0.975))
+
+trim_5_density <- bootstrap_sample %>%
+  group_by(replicate) %>%
+  mutate(TotalPay = trimmed_mean(TotalPay, percent = 0.05)) %>%
+  unique %>%
+  pull(TotalPay)
+
+trim_5_CI <- trim_5_density %>% quantile(c(0.025, 0.975))
+
+trim_10_density <- bootstrap_sample %>%
+  group_by(replicate) %>%
+  mutate(TotalPay = trimmed_mean(TotalPay, percent = 0.1)) %>%
+  unique %>%
+  pull(TotalPay)
+
+trim_10_CI <- trim_10_density %>% quantile(c(0.025, 0.975))
+
+trim_25_density <- bootstrap_sample %>%
+  group_by(replicate) %>%
+  mutate(TotalPay = trimmed_mean(TotalPay, percent = 0.25)) %>%
+  unique %>%
+  pull(TotalPay)
+
+trim_25_CI <- trim_25_density %>% quantile(c(0.025, 0.975))
+
+median_density <- bootstrap_sample %>%
+  infer::calculate(stat = "median") %>%
+  pull(stat)
+
+median_CI <- median_density %>% quantile(c(0.025, 0.975))
+```
+</details>
+</br>
+
+- Midhinge CI = `r formatC(midhinge_CI, format = "e", digits = 2)`
+- 5% Trimmed Mean CI = `r formatC(trim_5_CI, format = "e", digits = 2)`
+- 10% Trimmed Mean CI = `r formatC(trim_10_CI, format = "e", digits = 2)`
+- 25% Trimmed Mean CI = `r formatC(trim_25_CI, format = "e", digits = 2)`
+- Median CI = `r formatC(median_CI, format = "e", digits = 2)`
+
+### Plots
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
+midhinge_plot <- ggplot(data.frame(midhinge_density), aes(x=midhinge_density)) +
+  geom_histogram(bins = 40, aes(y = ..density..), fill = "grey", col = "white") + 
+  annotate(geom = "vline",
+             x = midhinge_CI,
+             xintercept = midhinge_CI,
+             linetype = "dashed")
+
+trim_5_plot <- ggplot(data.frame(trim_5_density), aes(x=trim_5_density)) +
+  geom_histogram(bins = 40, aes(y = ..density..), fill = "grey", col = "white") + 
+  annotate(geom = "vline",
+             x = trim_5_CI,
+             xintercept = trim_5_CI,
+             linetype = "dashed")
+
+trim_10_plot <- ggplot(data.frame(trim_10_density), aes(x=trim_10_density)) +
+  geom_histogram(bins = 40, aes(y = ..density..), fill = "grey", col = "white") + 
+  annotate(geom = "vline",
+             x = trim_10_CI,
+             xintercept = trim_10_CI,
+             linetype = "dashed")
+
+trim_25_plot <- ggplot(data.frame(trim_25_density), aes(x=trim_25_density)) +
+  geom_histogram(bins = 40, aes(y = ..density..), fill = "grey", col = "white") + 
+  annotate(geom = "vline",
+             x = trim_25_CI,
+             xintercept = trim_25_CI,
+             linetype = "dashed")
+
+median_plot <- ggplot(data.frame(median_density), aes(x=median_density)) +
+  geom_histogram(bins = 40, aes(y = ..density..), fill = "grey", col = "white") + 
+  annotate(geom = "vline",
+             x = median_CI,
+             xintercept = median_CI,
+             linetype = "dashed")
+```
+</details>
+</br>
+
+```{r, include=TRUE, echo=FALSE, warning=FALSE}
+gridExtra::grid.arrange(midhinge_plot,
+                        trim_5_plot,
+                        trim_10_plot,
+                        trim_25_plot,
+                        median_plot,
+                        nrow = 3)
+```
+
+### Analysis: Best Statistic
+
+I believe the 10% trimmed mean statistic is best because its 95% confidence interval range is the narrowest at `r diff(trim_5_CI)`, suggesting that it is the most specific interval range. It is reasonable to assume that at higher confidence intervals (e.g. 99%), this range would continue to narrow and therefore be the most specific.
+
+## Challenge: Overtime Pay
+
+```{r}
+bootstrap_overtime_sample <- data %>%
+  infer::specify(response = OvertimePay) %>%
+  infer::generate(reps = 1000, type = "bootstrap")
+
+overtime_density <- bootstrap_overtime_sample %>%
+  group_by(replicate) %>%
+  mutate(OvertimePay = trimmed_mean(OvertimePay, percent = 0.35)) %>%
+  unique %>%
+  pull(OvertimePay) 
+
+overtime_CI <- overtime_density %>% quantile(c(0.025, 0.975))
+
+overtime_plot <- ggplot(data.frame(overtime_density), aes(x=overtime_density)) +
+  geom_histogram(bins = 40, aes(y = ..density..), fill = "grey", col = "white") + 
+  annotate(geom = "vline",
+             x = overtime_CI,
+             xintercept = overtime_CI,
+             linetype = "dashed")
+
+percent_overpay <- length(overtime_density[overtime_density >= 50]) / length(overtime_density)
+percent_overpay
+overtime_plot
+```
+
+The percentage of San Francisco workers in 2014 who earned more than $50 in overtime pay was `r percent_overpay`. I used the trimmed mean (35%) method.

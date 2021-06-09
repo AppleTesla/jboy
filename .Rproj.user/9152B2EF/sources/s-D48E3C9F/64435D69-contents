@@ -1,0 +1,351 @@
+---
+title: "Lab9"
+author: "Jaron Schreibr"
+date: "6/6/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r imports, include=FALSE}
+library(tidyverse)
+library(infer)
+library(modelr)
+library(data.table)
+library(here)
+
+babies_ca <- data.table::fread(here::here("Data", "babies_ca.csv"))
+filenames <- list.files(here::here("Data/BabyNames"), pattern="*.csv", full.names=TRUE)
+babies <- rbindlist(lapply(filenames, fread))
+babies_pa <- babies %>% filter(State == "PA")
+```
+
+# {.tabset .tabset-fade .tabset-pills}
+
+## Part One: Kelly Still Cool?
+
+### 1. Kelly's Born Each Year
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE}
+kelly <- babies_ca %>% filter(Name == "Kelly")
+kelly_plot <- ggplot(kelly, mapping = aes(x=Year, y=Count, color=Gender)) + 
+  geom_bar(stat="identity") + ggtitle("'Kelly' Popularity Over Time")
+```
+</details>
+</br>
+
+```{r, echo=FALSE}
+kelly_plot
+```
+
+### 3. Linear Model (Since 1989)
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE}
+kelly_1989 <- kelly %>% filter(Year >= 1989)
+
+kelly_plot_1989 <- ggplot(kelly_1989, mapping = aes(x=Year, y=Count)) + 
+  geom_point() +
+  stat_smooth(method = "lm") +
+  ggtitle("'Kelly' Popularity Since 1989")
+
+kelly_lm_1989 <- lm(Count ~ Year, kelly_1989)
+```
+</details>
+</br>
+
+```{r, echo=FALSE, message=FALSE}
+knitr::kable(broom::tidy(kelly_lm_1989))
+
+kelly_plot_1989
+```
+
+### 4. Residuals Plot
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE}
+kelly_1989_residuals <- kelly_1989 %>% 
+  add_predictions(kelly_lm_1989) %>%
+  mutate(residual = Count - pred)
+
+residuals <- ggplot(kelly_1989_residuals, aes(x = Year, y = residual)) +
+  geom_point() +
+  ggtitle("Residuals (Actual Count - Predicted)")
+```
+</details>
+</br>
+
+```{r, echo=FALSE, message=FALSE}
+residuals
+```
+
+<div class="alert alert-info">
+<strong>Pattern?</strong> I see two distinct and separate linear patterns, suggesting that the data may better be predicted by two different non-linear models. I also notice that each of the two observed residual patterns converge at 0 but start far above/below 0.
+</div>
+
+### 5. Including Gender
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE}
+kelly_lm_gender <- lm(Count ~ Gender:Year, kelly_1989)
+
+kelly_plot_gender <- ggplot(kelly_1989, mapping = aes(x=Year, y=Count, color=Gender)) + 
+  geom_point() +
+  stat_smooth(method = "lm") +
+  ggtitle("'Kelly' Popularity Since 1989", subtitle = "Including Gender")
+
+kelly_gender_residuals <- kelly_1989 %>%
+  add_predictions(kelly_lm_gender) %>%
+  mutate(residual = Count - pred)
+
+residuals_gender <- ggplot(kelly_gender_residuals, aes(x = Year, y = residual)) +
+  geom_point() +
+  ggtitle("Residuals (Actual Count - Predicted)", subtitle = "Including Gender")
+```
+</details>
+</br>
+
+```{r, echo=FALSE, message=FALSE}
+knitr::kable(broom::tidy(kelly_lm_gender))
+kelly_plot_gender
+residuals_gender
+```
+
+<div class="alert alert-info">
+<strong>Pattern?</strong> I notice that while I still see two distinct linear patterns in the residual plot (now from the two separate linear model coefficients), they average around the 0 mark.
+</div>
+
+#### Conclusion
+
+I can conclude that including Gender in the model is necessary as male and female Kelly's have two distinct time-popularity trends. However, I can also see linear patterns in the residuals, suggesting that each time-popularity trend (M and F) may be better modeled by non-linear equations.
+
+## Part Two: Spelling By State
+
+### Variations' Popularities
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE}
+allan_ca <- babies_ca %>%
+  filter(stringr::str_detect(Name, "^(Allan|Alan|Allen)$") == TRUE)
+
+allan_pa <- babies_pa %>%
+  filter(stringr::str_detect(Name, "^(Allan|Alan|Allen)$") == TRUE)
+
+allan_ca_male <- allan_ca %>%
+  filter(Gender == "M")
+
+allan_plot <- ggplot(allan_ca_male, mapping = aes(x=Year, y=Count, color=Name)) + 
+  geom_bar(stat="identity") + 
+  ggtitle("'Allan' Popularity Over Time (CA)", subtitle = "Males Only")
+```
+</details>
+</br>
+
+```{r, echo=FALSE, message=FALSE}
+allan_plot
+```
+
+### PA vs CA (Only Males)
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE}
+allan_ca <- allan_ca %>% filter(Year == 2000, 
+                                Gender == 'M')
+allan_pa <- allan_pa %>% filter(Year == 2000, 
+                                 Gender == 'M')
+
+allan_ca_count <- sum(allan_ca$Count)
+allan_pa_count <- sum(allan_pa$Count)
+
+allan_ca_percents <- allan_ca %>%
+  group_by(Name) %>%
+  mutate(Total = sum(Count)) %>%
+  distinct(Total) %>%
+  mutate(Percent = 100 * Total/allan_ca_count) %>%
+  arrange(Name)
+
+allan_pa_percents <- allan_pa %>%
+  group_by(Name) %>%
+  mutate(Total = sum(Count)) %>%
+  distinct(Total) %>%
+  mutate(Percent = 100 * Total/allan_pa_count) %>%
+  arrange(Name)
+```
+</details>
+</br>
+
+```{r, echo=FALSE, message=FALSE}
+knitr::kable(allan_ca_percents, caption = "California (Year 2000)")
+knitr::kable(allan_pa_percents, caption = "Pennsylvania (Year 2000)")
+```
+
+### Chi-Square Test
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE}
+allan_ca_percents <- allan_ca_percents %>%
+  mutate(State = factor('CA'), Name = factor(Name))
+
+allan_pa_percents <- allan_pa_percents %>%
+  mutate(State = factor('PA'), Name = factor(Name))
+
+two_way <- matrix(c(176, 56, 579, 51, 131, 12), ncol=3)
+rownames(two_way) <- c('CA', 'PA')
+colnames(two_way) <- c('Allen', 'Alan', 'Allan')
+two_way <- as.table(two_way)
+
+chisq <- two_way %>% chisq.test()
+chisq <- broom::tidy(chisq)
+```
+</details>
+</br>
+
+#### Two-way Frequency Table
+
+```{r, echo=FALSE, message=FALSE}
+knitr::kable(two_way)
+```
+
+#### Test Statistics
+
+```{r, echo=FALSE, message=FALSE}
+knitr::kable(chisq)
+```
+
+<div class="alert alert-info">
+<strong>Conclusion!</strong> The test produced a p-value of `r formatC(chisq$'p.value', format = "e", digits = 2)`. At any reasonable significance level, this p-value would suggest that we can **reject the null hypothesis** that there is no relationship between the state (PA vs CA) and the spelling of Allan's name in the year 2000.
+</div>
+
+## Challenge
+
+### Jason...Jaren...Jaron?
+
+I chose to do an analysis of my own name '*Jaron*' across two states: CA and HI. I moved from CA (where I was born) to HI in 2011, so I've lived about half my life in both states (as of 2021). I regularly get referred to as Jason in public or have my name misspelled with an 'e' instead of an 'o'. I thought it'd be interesting to see if such a choice of name and its spelling has any correlation with the two states I call home.
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE}
+jaron_ca <- babies %>%
+  filter(stringr::str_detect(Name, "^(Jason|Jaron|Jaren)$") == TRUE, State == 'CA', Gender == "M")
+
+jaron_hi <- babies %>%
+  filter(stringr::str_detect(Name, "^(Jason|Jaron|Jaren)$$") == TRUE, State == 'HI', Gender == "M")
+
+jaron_plot_ca <- ggplot(jaron_ca, mapping = aes(x=Year, y=Count, color=Name)) + 
+  geom_bar(stat="identity") + 
+  ggtitle("'Jaron' Popularity Over Time (CA)", subtitle = "Males Only")
+
+jaron_plot_hi <- ggplot(jaron_hi, mapping = aes(x=Year, y=Count, color=Name)) + 
+  geom_bar(stat="identity") + 
+  ggtitle("'Jaron' Popularity Over Time (HI)", subtitle = "Males Only")
+```
+</details>
+</br>
+
+It is immediately obvious that due to California being the 36th largest population (if it were a country) and Hawaii being as tiny as it is, that the sample sizes are dramatically different. We will see how this affects our test statistics.
+
+```{r, echo=FALSE, message=FALSE}
+gridExtra::grid.arrange(jaron_plot_ca,
+                        jaron_plot_hi,
+                        nrow = 1)
+```
+
+
+<div class="alert alert-info">
+<strong>Wow!</strong> Apparently, my name and what its often confused for (Jaren and Jason) are all in decline across BOTH states. I don't know how to feel about that?
+</div>
+
+In California, both names that are commonly misconstrued with mine have been equally popular over time. Notably, in Hawaii, Jason was less popular than my name (and its alternative spelling) leading up to around 2003, where the data for both spellings (Jaron and Jaren) seemingly stops. If these samples from Hawaii were properly randomized, then this would suggest that my name has become unpopular enough to appear in such random samples. More likely, this particular sample doesn't capture the many other post-2003 babies whose names were Jaren or Jaron.
+
+### HI vs CA (Only Males, Year 1999)
+
+I picked the year 1999 as it was when my parents chose my name (my birth came 2 years later).
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE}
+jaron_ca <- jaron_ca %>% filter(Year == 1999)
+jaron_hi <- jaron_hi %>% filter(Year == 1999)
+
+jaron_ca_count <- sum(jaron_ca$Count)
+jaron_hi_count <- sum(jaron_hi$Count)
+
+jaron_ca_percents <- jaron_ca %>%
+  group_by(Name) %>%
+  mutate(Total = sum(Count)) %>%
+  distinct(Total) %>%
+  mutate(Percent = 100 * Total/jaron_ca_count) %>%
+  arrange(Name)
+
+jaron_hi_percents <- jaron_hi %>%
+  group_by(Name) %>%
+  mutate(Total = sum(Count)) %>%
+  distinct(Total) %>%
+  mutate(Percent = 100 * Total/jaron_hi_count) %>%
+  arrange(Name)
+```
+</details>
+</br>
+
+```{r, echo=FALSE, message=FALSE}
+knitr::kable(jaron_ca_percents, caption = "California (Year 1999)")
+knitr::kable(jaron_hi_percents, caption = "Hawaii (Year 1999)")
+```
+
+### Chi-Square Test
+
+<details>
+  <summary>Click for Code</summary>
+  </br>
+```{r, echo=TRUE, include=TRUE, warning=FALSE}
+jaron_ca_percents <- jaron_ca_percents %>%
+  mutate(State = factor('CA'), Name = factor(Name))
+
+jaron_hi_percents <- jaron_hi_percents %>%
+  mutate(State = factor('HI'), Name = factor(Name))
+
+two_way <- matrix(c(21, 7, 22, 0, 1414, 36), ncol=3)
+rownames(two_way) <- c('CA', 'HI')
+colnames(two_way) <- c('Jaron', 'Jaren', 'Jason')
+two_way <- as.table(two_way)
+
+chisq <- two_way %>% chisq.test()
+chisq <- broom::tidy(chisq)
+```
+</details>
+</br>
+
+#### Two-way Frequency Table
+
+```{r, echo=FALSE, message=FALSE}
+knitr::kable(two_way)
+```
+
+#### Test Statistics
+
+```{r, echo=FALSE, message=FALSE}
+knitr::kable(chisq)
+```
+
+<div class="alert alert-info">
+<strong>Conclusion!</strong> The test produced a p-value of `r formatC(chisq$'p.value', format = "e", digits = 2)`. At any reasonable significance level, this p-value would suggest that we can **reject the null hypothesis** that there is no relationship between the state (CA vs HI) and the (mis)spelling of my name. However, it is important to note that due to Hawaii's naturally small sample size, I would have needed a larger sample and a bootstrap resampling (to take advantage of the CLT) of that larger sample to draw any conclusions.
+</div>
