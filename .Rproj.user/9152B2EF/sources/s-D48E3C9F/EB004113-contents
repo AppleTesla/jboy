@@ -3,9 +3,7 @@
 #' @param options A vector of use cases. Choose from the following: default, csv, stat.tests, unit.tests
 #'
 #' @return A dataframe consisting of sample sizes and their respective sample means
-#'
-#' @import base
-#'
+#'#'
 #' @export
 
 imports <- function(options = c('default')) {
