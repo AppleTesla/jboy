@@ -45,4 +45,5 @@ A wrapper function for ggplot geom_smooth
 line_graph(cereals, protein, calories, sugar, title = 'Is It Really Protein?', show.CI = FALSE, color = 'protein')
 line_graph(cereals, sodium, fat, title = 'Fat vs Sodium', one.chart = TRUE, color = 'green')
 
+
 }

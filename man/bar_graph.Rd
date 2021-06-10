@@ -39,4 +39,5 @@ A wrapper function for ggplot geom_bar
 bar_graph(cereals, mfr, calories, title = 'Mfr vs Calories', 'mfr')
 bar_graph(cereals, protein, title = 'Protein vs Calories', 'blue')
 
+
 }

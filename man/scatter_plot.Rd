@@ -47,3 +47,9 @@ Returns a geom_point plot from ggplot.
 \description{
 A wrapper function for ggplot geom_point
 }
+\examples{
+scatter_plot(cereals, protein, sugar, title = 'Is It Really Protein?', show.regression = TRUE, color = 'calories')
+line_graph(cereals, sugar, shelf, title = 'For Children?', show.regression = TRUE, show.CI = FALSE, size = 'protein')
+
+
+}
