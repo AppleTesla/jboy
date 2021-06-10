@@ -1,8 +1,8 @@
-#' Provides a template for the repetitve task of requiring libraries
+#' Provides a template for the repetitive task of requiring packages It also installs missing packages.
 #'
 #' @param options A vector of use cases. Choose from the following: default, csv, stat.tests, unit.tests
 #'
-#' @return A dataframe consisting of sample sizes and their respective sample means
+#' @return No return value. Prints to the console upon package installation.
 #'
 #' @export
 
@@ -14,7 +14,7 @@ imports <- function(options = c('default')) {
   }
 
   if (is.element('stat.tests', options)) {
-    libraries <- c(libraries, 'infer', 'modelr', 'plotrix')
+    libraries <- c(libraries, 'infer', 'modelr', 'cowplot')
   }
 
   if (is.element('unit.tests', options)) {
@@ -25,10 +25,9 @@ imports <- function(options = c('default')) {
 
   if (length(new.packages)) {
     install.packages(new.packages)
+    print('Installed these missing packages:')
+    print(new.packages)
   }
 
   lapply(libraries, require, character.only = TRUE)
-
-  print('Installed these packages:')
-  print(libraries)
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/imports.R
 \name{imports}
 \alias{imports}
-\title{Provides a template for the repetitve task of requiring libraries}
+\title{Provides a template for the repetitive task of requiring packages It also installs missing packages.}
 \usage{
 imports(options = c("default"))
 }
@@ -10,8 +10,8 @@ imports(options = c("default"))
 \item{options}{A vector of use cases. Choose from the following: default, csv, stat.tests, unit.tests}
 }
 \value{
-A dataframe consisting of sample sizes and their respective sample means
+No return value. Prints to the console upon package installation.
 }
 \description{
-Provides a template for the repetitve task of requiring libraries
+Provides a template for the repetitive task of requiring packages It also installs missing packages.
 }
